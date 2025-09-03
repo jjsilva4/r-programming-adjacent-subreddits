@@ -26,7 +26,8 @@
     .chips{display:flex;flex-wrap:wrap;gap:8px}
     .chip{background:#1f2a3a;color:#cfe0ff;border:1px solid #253248;border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
     .chip a{color:#cfe0ff;text-decoration:none}
-  </style>
+  @media (max-width:760px){#clusters-radial{display:none;}}
+    </style>
 </head>
 <body>
   <header>
@@ -38,7 +39,7 @@
 
   <main class="container">
     <!-- Radial Map -->
-    <section class="section" id="clusters-radial">
+    <section class=\"section\" id=\"clusters-radial\" style=\"display:block;\">
       <h2>Clusters (Radial Map)</h2>
       <p class="sub">r/programming sits at the center, with clusters orbiting like a constellation. Colors = cluster families.</p>
       <div id="radialmap" style="width:100%;height:520px"></div>
@@ -112,22 +113,31 @@
                 .attr('stroke', cl.color)
                 .attr('stroke-width', 2);
 
-              // labels
+              // labels (place just outside the outer orbit, near the circle)
+              const rr = rScale(cl.pct);
+              const labelR = Math.max(R + rr + 12, maxOrbit + 12);
+              const lx = center.x + labelR * Math.cos(angle);
+              const ly = center.y + labelR * Math.sin(angle);
+              const cosA = Math.cos(angle);
+              let anchor = 'middle';
+              if (cosA > 0.35) anchor = 'start';
+              else if (cosA < -0.35) anchor = 'end';
+
+              // connector from circle edge to label
+              svg.append('line')
+                .attr('x1', x + rr * Math.cos(angle))
+                .attr('y1', y + rr * Math.sin(angle))
+                .attr('x2', lx)
+                .attr('y2', ly)
+                .attr('stroke', '#273248');
+
               svg.append('text')
-                .attr('x', x)
-                .attr('y', y - (rScale(cl.pct) + 14))
-                .attr('text-anchor', 'middle')
+                .attr('x', lx)
+                .attr('y', ly)
+                .attr('text-anchor', anchor)
                 .attr('fill', '#e6f1ff')
                 .style('font-size', '12px')
                 .text(cl.name);
-
-              svg.append('text')
-                .attr('x', x)
-                .attr('y', y + (rScale(cl.pct) + 16))
-                .attr('text-anchor', 'middle')
-                .attr('fill', '#e6f1ff')
-                .style('font-size', '11px')
-                .text(cl.pct + '%');
             });
 
             // Center label with halo + glow
