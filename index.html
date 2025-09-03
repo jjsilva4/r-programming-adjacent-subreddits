@@ -153,7 +153,11 @@
             merge.append('feMergeNode').attr('in', 'coloredBlur');
             merge.append('feMergeNode').attr('in', 'SourceGraphic');
 
-            const centerG = svg.append('g');
+            const centerLink = svg.append('a')
+              .attr('href','https://jjsilva4.github.io/Meta-Analysis-r-programming/')
+              .attr('target','_blank')
+              .style('cursor','pointer');
+            const centerG = centerLink.append('g');
             centerG.append('circle')
               .attr('cx', center.x).attr('cy', center.y)
               .attr('r', 56)
@@ -387,15 +391,20 @@
 
     <!-- Discussion section -->
     <div class="section discussion">
-      <h2>Why This Matters</h2>
-      <p>Why should you care about r/programming’s network? Because it reflects more than just where developers spend time online; it shows what they value. From heated language wars to watchdog open source debates to skepticism around AI, the clusters we mapped highlight where credibility is earned and how trust is lost. This is a culture that prizes autonomy, documentation, and accountability, while pushing back hard against hype and corporate overreach.</p>
-      <p>For anyone trying to engage, whether brands, researchers, or collaborators, this map acts as a compass. Speak to developers’ need for autonomy, show your work with clarity and rigor, and respect their time, and you’ll find traction. Miss these signals, and you’ll quickly lose credibility.</p>
+      <h2>Network Summary</h2>
+      <p>This description synthesizes patterns observed in the uploaded user profiles and posts. It aims to describe observed behaviors rather than prescribe what developers should do. Across the sample, users tend to favor demonstrated rigor, minimal reproducible examples, and open discussion of trade‑offs. Critical reactions toward hype or opaque corporate abstractions are common, while testing discipline, OSS transparency, and clear documentation are often cited positively.</p>
+      <p>The clusters shown in this dashboard summarize where conversations concentrate (e.g., language debates, systems safety, OSS mentoring, pragmatic web standards). Humor, concise critique, and small working demos frequently function as shorthand for credibility. These statements reflect the analyzed sample and timeframe and should be interpreted as directional rather than definitive claims about all developers.</p>
     </div>
 
     <!-- Sources / Citations -->
     <section class="section">
       <h2>Sources & Notes</h2>
-      <p class="sub">This view is built from a hand-curated set of ~33 active r/programming users and their adjacent activity across related subreddits.</p>
+      <p class="sub">This view is built from a hand‑curated set of ~33 active r/programming users and their adjacent activity across related subreddits. It summarizes observed patterns; it does not imply endorsement.</p>
+      <ul class="sub" style="margin:8px 0 12px 18px;line-height:1.5">
+        <li>Scope: profiles and posts uploaded in this workspace; not a random or exhaustive sample.</li>
+        <li>Time‑bound: reflects the content available at the time of analysis.</li>
+        <li>Method: qualitative coding of user posts and profile activity; directional signals, not statistical claims.</li>
+      </ul>
       <div class="chips">
         <!-- User chips intact -->
       </div>
