@@ -202,10 +202,10 @@
       </div>
       <style>
         .barlist{display:grid;gap:10px}
-        .barrow{display:grid;grid-template-columns:1.6fr 5fr 60px;align-items:center;gap:12px;background:#0f1625;border:1px solid #1b2a40;border-radius:12px;padding:10px}
+        .barrow{display:grid;grid-template-columns:1.6fr 5fr;align-items:center;gap:12px;background:#0f1625;border:1px solid #1b2a40;border-radius:12px;padding:10px}
         .barname{font-weight:700;color:#e6f1ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
         .bartrack{position:relative;height:14px;border-radius:999px;background:#0c1422;border:1px solid #223047;overflow:hidden}
-        .barfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px}
+        .barfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;display:flex;justify-content:flex-end;align-items:center;padding-right:8px;color:#fff;font-weight:700;font-size:12px}
         .barpct{font-weight:700;color:#e6f1ff;text-align:right}
         @media (max-width:760px){
           .barrow{grid-template-columns:1fr;grid-template-rows:auto auto auto}
@@ -236,9 +236,11 @@
             const row = document.createElement('div');
             row.className = 'barrow';
             row.innerHTML = `
-              <div class="barname" title="${d.name}">${d.name}</div>
-              <div class="bartrack"><div class="barfill" style="background:${d.color}; width:${d.pct}%;"></div></div>
-              <div class="barpct">${d.pct}%</div>
+              <div class=\"barname\" title=\"${d.name}\">${d.name}</div>
+              <div class=\"bartrack\">
+                <div class=\"barfill\" style=\"background:${d.color}; width:${d.pct}%;\"></div>
+                <div class=\"barpct\" style=\"position:absolute; left:calc(${d.pct}% + 6px); top:50%; transform:translateY(-50%); font-weight:700; color:#e6f1ff; font-size:12px;\">${d.pct}%</div>
+              </div>
             `;
             root.appendChild(row);
           });
