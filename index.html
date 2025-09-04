@@ -46,6 +46,12 @@
       <style>
         @media (max-width:760px){#clusters-radial{display:none;}}
         #radialmap .label{cursor:pointer}
+        /* Popover for label clicks */
+        #radialmap .popover{position:absolute;min-width:220px;max-width:340px;background:#0f1625;border:1px solid #1b2a40;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:10px 12px 12px;z-index:5}
+        #radialmap .popover .ttl{font-weight:700;margin-bottom:8px;color:#e6f1ff}
+        #radialmap .popover .chips{display:flex;flex-wrap:wrap;gap:8px}
+        #radialmap .popover .chip{background:#1f2a3a;color:#cfe0ff;border:1px solid #253248;border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
+        #radialmap .popover .chip a{color:#cfe0ff;text-decoration:none}
       </style>
       <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
       <script>
@@ -54,18 +60,70 @@
           const css = getComputedStyle(document.documentElement);
           const C = n => css.getPropertyValue(n).trim();
 
+          // Data with related subreddit chips for popovers
           const DATA = [
-            {name:'Language Wars', color:C('--c-lang'), pct:33},
-            {name:'Pragmatist Engineers', color:C('--c-infra'), pct:21},
-            {name:'AI Skeptics / Policy', color:C('--c-ai'), pct:18},
-            {name:'Webdev Pragmatists', color:C('--c-web'), pct:15},
-            {name:'Rust & Systems', color:C('--c-rust'), pct:12},
-            {name:'OSS Guardians', color:C('--c-oss'), pct:9},
-            {name:'Quantum / HPC', color:C('--c-quant'), pct:9},
-            {name:'Career Realists', color:C('--c-career'), pct:6},
-            {name:'GPU / AI Infra', color:C('--c-gpu'), pct:3},
-            {name:'Data Engineering', color:C('--c-data'), pct:3}
+            {name:'Language Wars', color:C('--c-lang'), pct:33, subs:['r/rust','r/golang','r/cpp','r/java','r/python']},
+            {name:'Pragmatist Engineers', color:C('--c-infra'), pct:21, subs:['r/apachekafka','r/vscode','r/JetBrains','r/IntelliJIDEA','r/angular']},
+            {name:'AI Skeptics / Policy', color:C('--c-ai'), pct:18, subs:['r/MachineLearning','r/Futurology','r/LocalLLaMA','r/technology']},
+            {name:'Webdev Pragmatists', color:C('--c-web'), pct:15, subs:['r/webdev','r/javascript','r/css','r/vuejs']},
+            {name:'Rust & Systems', color:C('--c-rust'), pct:12, subs:['r/rust','r/Zig','r/osdev']},
+            {name:'OSS Guardians', color:C('--c-oss'), pct:9, subs:['r/linux','r/archlinux','r/selfhosted','r/foss']},
+            {name:'Quantum / HPC', color:C('--c-quant'), pct:9, subs:['r/QuantumComputing','r/HPC','r/compsci']},
+            {name:'Career Realists', color:C('--c-career'), pct:6, subs:['r/cscareerquestions','r/ExperiencedDevs']},
+            {name:'GPU / AI Infra', color:C('--c-gpu'), pct:3, subs:['r/LocalLLaMA','r/selfhosted','r/deeplearning']},
+            {name:'Data Engineering', color:C('--c-data'), pct:3, subs:['r/dataengineering','r/sql','r/duckdb','r/polars']}
           ];
+
+          function ensurePopover(){
+            let pop = host.querySelector('.popover');
+            if(!pop){
+              pop = document.createElement('div');
+              pop.className = 'popover';
+              pop.style.display = 'none';
+              pop.innerHTML = '<div class="ttl"></div><div class="chips"></div>';
+              host.appendChild(pop);
+              // click inside popover dismisses it
+              pop.addEventListener('click', ()=> pop.style.display='none');
+            }
+            return pop;
+          }
+
+          function showPopover(x,y,title,subs){
+            const pop = ensurePopover();
+            const ttl = pop.querySelector('.ttl');
+            const chips = pop.querySelector('.chips');
+            // toggle if same target
+            if(pop.style.display==='block' && ttl.textContent===title){
+              pop.style.display='none';
+              return;
+            }
+            ttl.textContent = title;
+            chips.innerHTML = '';
+            (subs||[]).forEach(s=>{
+              const el = document.createElement('span');
+              el.className='chip';
+              const a = document.createElement('a');
+              a.href = 'https://www.reddit.com/' + s.replace(/^\//,'');
+              a.target = '_blank';
+              a.textContent = s;
+              el.appendChild(a);
+              chips.appendChild(el);
+            });
+            if(!(subs&&subs.length)){
+              const none = document.createElement('div');
+              none.style.color = '#9fb2cc';
+              none.style.fontSize = '12px';
+              none.textContent = 'No subreddit links yet for this cluster.';
+              chips.appendChild(none);
+            }
+            const svgRect = host.querySelector('svg').getBoundingClientRect();
+            const hostRect = host.getBoundingClientRect();
+            const left = (x + svgRect.left) - hostRect.left + 12;
+            const top  = (y + svgRect.top)  - hostRect.top  + 12;
+            pop.style.left = Math.round(left) + 'px';
+            pop.style.top  = Math.round(top)  + 'px';
+            pop.style.display = 'block';
+          }
 
           function render(){
             const width = Math.max(360, host.getBoundingClientRect().width || host.offsetWidth || 800);
@@ -92,28 +150,41 @@
             merge.append('feMergeNode').attr('in','coloredBlur');
             merge.append('feMergeNode').attr('in','SourceGraphic');
 
-            // background lines
+            // draw spokes, nodes, labels
             DATA.forEach((cl,i)=>{
               const angle = (i/DATA.length)*2*Math.PI;
               const R = orbitScale(cl.pct);
               const x = center.x + R*Math.cos(angle);
               const y = center.y + R*Math.sin(angle);
               const rr = rScale(cl.pct);
-              svg.append('line').attr('x1',center.x).attr('y1',center.y).attr('x2',x).attr('y2',y).attr('stroke','#1b2a40').attr('stroke-width',spokeScale(cl.pct));
-              svg.append('circle').attr('cx',x).attr('cy',y).attr('r',rr).attr('fill','none').attr('stroke',cl.color).attr('stroke-width',2);
+
+              const g = svg.append('g');
+              g.append('line').attr('x1',center.x).attr('y1',center.y).attr('x2',x).attr('y2',y).attr('stroke','#1b2a40').attr('stroke-width',spokeScale(cl.pct));
+              g.append('circle').attr('cx',x).attr('cy',y).attr('r',rr).attr('fill','none').attr('stroke',cl.color).attr('stroke-width',2);
+
               const labelR = Math.max(R + rr + 12, maxOrbit + 12);
               const lx = center.x + labelR*Math.cos(angle);
               const ly = center.y + labelR*Math.sin(angle);
               const cosA = Math.cos(angle);
               let anchor = 'middle';
               if(cosA>0.35) anchor='start'; else if(cosA<-0.35) anchor='end';
-              svg.append('text').attr('class','label').attr('x',lx).attr('y',ly).attr('text-anchor',anchor).attr('fill','#e6f1ff').style('font-size','12px').text(cl.name);
+              g.append('line').attr('x1',x + rr*Math.cos(angle)).attr('y1',y + rr*Math.sin(angle)).attr('x2',lx).attr('y2',ly).attr('stroke','#273248');
+              g.append('text').attr('class','label').attr('x',lx).attr('y',ly).attr('text-anchor',anchor).attr('fill','#e6f1ff').style('font-size','12px').text(cl.name)
+                .on('click',()=>{ showPopover(lx, ly, cl.name + ' — Related Subreddits', cl.subs||[]); });
             });
 
-            // draw center last so it's on top
+            // draw center last so it sits above lines
             const centerG = svg.append('g');
             centerG.append('circle').attr('cx',center.x).attr('cy',center.y).attr('r',56).attr('fill','#0b0f14').attr('opacity',0.96).attr('stroke','#1b2a40').attr('stroke-width',2);
             centerG.append('text').attr('x',center.x).attr('y',center.y+4).attr('text-anchor','middle').attr('fill','#e6f1ff').style('font-size','14px').style('font-weight','700').attr('filter','url(#glow)').text('r/programming');
+
+            // click outside to dismiss
+            svg.on('click',(evt)=>{
+              const pop = host.querySelector('.popover');
+              if(!pop) return;
+              if(evt.target && evt.target.classList && evt.target.classList.contains('label')) return;
+              pop.style.display='none';
+            });
           }
 
           render();
