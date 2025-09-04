@@ -33,22 +33,27 @@
   <header>
     <div class="container">
       <h1>r/programming Network – Community Map</h1>
-      <div class=\"sub\">Built from ~33 core technical users • September 3, 2025</div>
+      <div class="sub">Built from ~33 core technical users • September 3, 2025</div>
     </div>
   </header>
 
   <main class="container">
     <!-- Radial Map -->
-    <section class=\"section\" id=\"clusters-radial\" style=\"display:block;\">
+    <section class="section" id="clusters-radial" style="display:block;">
       <h2>Clusters (Radial Map)</h2>
       <p class="sub">r/programming sits at the center, with clusters orbiting like a constellation. Colors = cluster families.</p>
-      <div id="radialmap" style="width:100%;height:520px"></div>
+      <div id="radialmap" style="position:relative;width:100%;height:520px"></div>
+      <style>
+        @media (max-width:760px){#clusters-radial{display:none;}}
+        #radialmap .label{cursor:pointer}
+      </style>
       <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
       <script>
         (function(){
-          const container = document.getElementById('radialmap');
+          const host = document.getElementById('radialmap');
           const css = getComputedStyle(document.documentElement);
           const C = n => css.getPropertyValue(n).trim();
+
           const DATA = [
             {name:'Language Wars', color:C('--c-lang'), pct:33},
             {name:'Pragmatist Engineers', color:C('--c-infra'), pct:21},
@@ -63,126 +68,60 @@
           ];
 
           function render(){
-            const width = Math.max(360, container.getBoundingClientRect().width || container.offsetWidth || 800);
+            const width = Math.max(360, host.getBoundingClientRect().width || host.offsetWidth || 800);
             const height = 520;
-            container.innerHTML = '';
+            host.innerHTML = '';
 
-            const svg = d3.select(container).append('svg')
+            const svg = d3.select(host).append('svg')
               .attr('width', width)
               .attr('height', height);
 
             const center = {x: width/2, y: height/2};
             const maxOrbit = Math.min(width, height)/2 - 70;
 
-            // Scales
             const pctMax = d3.max(DATA, d => d.pct);
             const pctMin = d3.min(DATA, d => d.pct);
             const rScale = d3.scaleLinear().domain([3, pctMax]).range([5, 26]).clamp(true);
-            const orbitScale = d3.scaleLinear().domain([pctMin, pctMax]).range([maxOrbit, maxOrbit*0.6]).clamp(true); // smaller -> farther
+            const orbitScale = d3.scaleLinear().domain([pctMin, pctMax]).range([maxOrbit, maxOrbit*0.6]).clamp(true);
             const spokeScale = d3.scaleLinear().domain([pctMin, pctMax]).range([1.2, 3.2]).clamp(true);
 
-            // Guides
-            const guide = svg.append('g').attr('opacity',0.25);
-            [0.6, 0.8, 1.0].forEach(fr => {
-              guide.append('circle')
-                .attr('cx', center.x).attr('cy', center.y)
-                .attr('r', maxOrbit*fr)
-                .attr('fill','none')
-                .attr('stroke','#273248');
-            });
+            const defs = svg.append('defs');
+            const filter = defs.append('filter').attr('id','glow').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
+            filter.append('feGaussianBlur').attr('stdDeviation',4).attr('result','coloredBlur');
+            const merge = filter.append('feMerge');
+            merge.append('feMergeNode').attr('in','coloredBlur');
+            merge.append('feMergeNode').attr('in','SourceGraphic');
 
-            // spokes + nodes
-            DATA.forEach((cl, i) => {
-              const angle = (i/DATA.length) * 2 * Math.PI;
+            // background lines
+            DATA.forEach((cl,i)=>{
+              const angle = (i/DATA.length)*2*Math.PI;
               const R = orbitScale(cl.pct);
-              const x = center.x + R * Math.cos(angle);
-              const y = center.y + R * Math.sin(angle);
-
-              // spoke
-              svg.append('line')
-                .attr('x1', center.x).attr('y1', center.y)
-                .attr('x2', x).attr('y2', y)
-                .attr('stroke', '#1b2a40')
-                .attr('stroke-width', spokeScale(cl.pct));
-
-              // node
-              svg.append('circle')
-                .attr('cx', x).attr('cy', y)
-                .attr('r', rScale(cl.pct))
-                .attr('fill', 'none')
-                .attr('stroke', cl.color)
-                .attr('stroke-width', 2);
-
-              // labels (place just outside the outer orbit, near the circle)
+              const x = center.x + R*Math.cos(angle);
+              const y = center.y + R*Math.sin(angle);
               const rr = rScale(cl.pct);
+              svg.append('line').attr('x1',center.x).attr('y1',center.y).attr('x2',x).attr('y2',y).attr('stroke','#1b2a40').attr('stroke-width',spokeScale(cl.pct));
+              svg.append('circle').attr('cx',x).attr('cy',y).attr('r',rr).attr('fill','none').attr('stroke',cl.color).attr('stroke-width',2);
               const labelR = Math.max(R + rr + 12, maxOrbit + 12);
-              const lx = center.x + labelR * Math.cos(angle);
-              const ly = center.y + labelR * Math.sin(angle);
+              const lx = center.x + labelR*Math.cos(angle);
+              const ly = center.y + labelR*Math.sin(angle);
               const cosA = Math.cos(angle);
               let anchor = 'middle';
-              if (cosA > 0.35) anchor = 'start';
-              else if (cosA < -0.35) anchor = 'end';
-
-              // connector from circle edge to label
-              svg.append('line')
-                .attr('x1', x + rr * Math.cos(angle))
-                .attr('y1', y + rr * Math.sin(angle))
-                .attr('x2', lx)
-                .attr('y2', ly)
-                .attr('stroke', '#273248');
-
-              svg.append('text')
-                .attr('x', lx)
-                .attr('y', ly)
-                .attr('text-anchor', anchor)
-                .attr('fill', '#e6f1ff')
-                .style('font-size', '12px')
-                .text(cl.name);
+              if(cosA>0.35) anchor='start'; else if(cosA<-0.35) anchor='end';
+              svg.append('text').attr('class','label').attr('x',lx).attr('y',ly).attr('text-anchor',anchor).attr('fill','#e6f1ff').style('font-size','12px').text(cl.name);
             });
 
-            // Center label with halo + glow
-            const defs = svg.append('defs');
-            const filter = defs.append('filter')
-              .attr('id', 'glow')
-              .attr('x', '-50%').attr('y', '-50%')
-              .attr('width', '200%').attr('height', '200%');
-            filter.append('feGaussianBlur')
-              .attr('stdDeviation', 4)
-              .attr('result', 'coloredBlur');
-            const merge = filter.append('feMerge');
-            merge.append('feMergeNode').attr('in', 'coloredBlur');
-            merge.append('feMergeNode').attr('in', 'SourceGraphic');
-
-            const centerLink = svg.append('a')
-              .attr('href','https://jjsilva4.github.io/Meta-Analysis-r-programming/')
-              .attr('target','_blank')
-              .style('cursor','pointer');
-            const centerG = centerLink.append('g');
-            centerG.append('circle')
-              .attr('cx', center.x).attr('cy', center.y)
-              .attr('r', 56)
-              .attr('fill', '#0b0f14')
-              .attr('opacity', 0.96)
-              .attr('stroke', '#1b2a40')
-              .attr('stroke-width', 2);
-            centerG.append('text')
-              .attr('x', center.x).attr('y', center.y + 4)
-              .attr('text-anchor', 'middle')
-              .attr('fill', '#e6f1ff')
-              .style('font-size', '14px')
-              .style('font-weight', '700')
-              .attr('filter', 'url(#glow)')
-              .text('r/programming');
+            // draw center last so it's on top
+            const centerG = svg.append('g');
+            centerG.append('circle').attr('cx',center.x).attr('cy',center.y).attr('r',56).attr('fill','#0b0f14').attr('opacity',0.96).attr('stroke','#1b2a40').attr('stroke-width',2);
+            centerG.append('text').attr('x',center.x).attr('y',center.y+4).attr('text-anchor','middle').attr('fill','#e6f1ff').style('font-size','14px').style('font-weight','700').attr('filter','url(#glow)').text('r/programming');
           }
 
           render();
-          window.addEventListener('resize', () => {
-            // Re-render on resize for responsiveness
-            render();
-          });
+          window.addEventListener('resize', render);
         })();
       </script>
     </section>
+
     <!-- Cluster bar chart -->
     <section class="section" id="clusters-bars">
       <h2>Clusters (Bar Map)</h2>
@@ -239,7 +178,7 @@
     <!-- Related subreddits table -->
     <section class="section" id="related-subs">
       <h2>Explore Related Subreddits</h2>
-      <p class="sub">Scan-friendly cards grouped by cluster. Chips link to the communities you will likely see next when you follow r/programming users.</p>
+      <p class="sub">Each cluster has its own flavor. Below are subreddit clusters shown as cards with color rails and easy-to-scan chips.</p>
 
       <style>
         .cluster-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:12px}
@@ -254,6 +193,7 @@
       </style>
 
       <div class="cluster-cards">
+        <!-- 1. Language Wars -->
         <div class="ccard">
           <div class="cchead"><div class="ccrail" style="background:var(--c-lang)"></div><div class="cctitle">Language Wars</div></div>
           <div class="chips">
@@ -263,30 +203,21 @@
             <span class="chip"><a href="https://www.reddit.com/r/java" target="_blank">r/java</a></span>
             <span class="chip"><a href="https://www.reddit.com/r/python" target="_blank">r/python</a></span>
           </div>
-          <div class="ccwhy">Debates over programming languages; technical arguments that shape credibility.</div>
+          <div class="ccwhy">Debates over programming languages — spirited but technical arguments that shape credibility.</div>
         </div>
-
+        <!-- 2. Pragmatist Engineers -->
         <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-web)"></div><div class="cctitle">Webdev Pragmatists</div></div>
+          <div class="cchead"><div class="ccrail" style="background:var(--c-infra)"></div><div class="cctitle">Pragmatist Engineers</div></div>
           <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/webdev" target="_blank">r/webdev</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/javascript" target="_blank">r/javascript</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/css" target="_blank">r/css</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/vuejs" target="_blank">r/vuejs</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/apachekafka" target="_blank">r/apachekafka</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/vscode" target="_blank">r/vscode</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/JetBrains" target="_blank">r/JetBrains</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/IntelliJIDEA" target="_blank">r/IntelliJIDEA</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/angular" target="_blank">r/angular</a></span>
           </div>
-          <div class="ccwhy">Clarity, maintainability, and developer experience over hype.</div>
+          <div class="ccwhy">Integration tests, Kafka/DBs, and practical IDE workflows; bias toward "boring tech that works".</div>
         </div>
-
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-rust)"></div><div class="cctitle">Rust &amp; Systems Builders</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/rust" target="_blank">r/rust</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/Zig" target="_blank">r/Zig</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/osdev" target="_blank">r/osdev</a></span>
-          </div>
-          <div class="ccwhy">Safety, performance, and low-level mastery; crate culture and tooling.</div>
-        </div>
-
+        <!-- 3. AI Skeptics & Policy -->
         <div class="ccard">
           <div class="cchead"><div class="ccrail" style="background:var(--c-ai)"></div><div class="cctitle">AI Skeptics &amp; Policy</div></div>
           <div class="chips">
@@ -295,9 +226,30 @@
             <span class="chip"><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank">r/LocalLLaMA</a></span>
             <span class="chip"><a href="https://www.reddit.com/r/technology" target="_blank">r/technology</a></span>
           </div>
-          <div class="ccwhy">Critical of hype; tuned to regulation, privacy, and real-world impact.</div>
+          <div class="ccwhy">Pushback on AI hype; concern with regulation, privacy, and societal impact.</div>
         </div>
-
+        <!-- 4. Webdev Pragmatists -->
+        <div class="ccard">
+          <div class="cchead"><div class="ccrail" style="background:var(--c-web)"></div><div class="cctitle">Webdev Pragmatists</div></div>
+          <div class="chips">
+            <span class="chip"><a href="https://www.reddit.com/r/webdev" target="_blank">r/webdev</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/javascript" target="_blank">r/javascript</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/css" target="_blank">r/css</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/vuejs" target="_blank">r/vuejs</a></span>
+          </div>
+          <div class="ccwhy">Focus on clarity, maintainability, and developer experience over hype.</div>
+        </div>
+        <!-- 5. Rust & Systems -->
+        <div class="ccard">
+          <div class="cchead"><div class="ccrail" style="background:var(--c-rust)"></div><div class="cctitle">Rust &amp; Systems Builders</div></div>
+          <div class="chips">
+            <span class="chip"><a href="https://www.reddit.com/r/rust" target="_blank">r/rust</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/Zig" target="_blank">r/Zig</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/osdev" target="_blank">r/osdev</a></span>
+          </div>
+          <div class="ccwhy">Systems-level safety and performance; crate culture, tooling, and low-level mastery.</div>
+        </div>
+        <!-- 6. OSS Guardians -->
         <div class="ccard">
           <div class="cchead"><div class="ccrail" style="background:var(--c-oss)"></div><div class="cctitle">OSS Guardians</div></div>
           <div class="chips">
@@ -306,9 +258,9 @@
             <span class="chip"><a href="https://www.reddit.com/r/selfhosted" target="_blank">r/selfhosted</a></span>
             <span class="chip"><a href="https://www.reddit.com/r/foss" target="_blank">r/foss</a></span>
           </div>
-          <div class="ccwhy">Show code, avoid hype, help newcomers; strong open source norms.</div>
+          <div class="ccwhy">Open-source transparency and helping newcomers; anti-hype culture.</div>
         </div>
-
+        <!-- 7. Quantum / HPC -->
         <div class="ccard">
           <div class="cchead"><div class="ccrail" style="background:var(--c-quant)"></div><div class="cctitle">Quantum / HPC</div></div>
           <div class="chips">
@@ -316,9 +268,28 @@
             <span class="chip"><a href="https://www.reddit.com/r/HPC" target="_blank">r/HPC</a></span>
             <span class="chip"><a href="https://www.reddit.com/r/compsci" target="_blank">r/compsci</a></span>
           </div>
-          <div class="ccwhy">Where research-grade hardware meets gritty engineering.</div>
+          <div class="ccwhy">Mix of research and engineering; optimism vs realism in quantum futures.</div>
         </div>
-
+        <!-- 8. Career Realists -->
+        <div class="ccard">
+          <div class="cchead"><div class="ccrail" style="background:var(--c-career)"></div><div class="cctitle">Career Realists</div></div>
+          <div class="chips">
+            <span class="chip"><a href="https://www.reddit.com/r/cscareerquestions" target="_blank">r/cscareerquestions</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/ExperiencedDevs" target="_blank">r/ExperiencedDevs</a></span>
+          </div>
+          <div class="ccwhy">Trade-offs, mentorship, and pragmatic career advice — "boring tech pays."</div>
+        </div>
+        <!-- 9. GPU / AI Infra -->
+        <div class="ccard">
+          <div class="cchead"><div class="ccrail" style="background:var(--c-gpu)"></div><div class="cctitle">GPU / AI Infra</div></div>
+          <div class="chips">
+            <span class="chip"><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank">r/LocalLLaMA</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/selfhosted" target="_blank">r/selfhosted</a></span>
+            <span class="chip"><a href="https://www.reddit.com/r/deeplearning" target="_blank">r/deeplearning</a></span>
+          </div>
+          <div class="ccwhy">Hands-on GPU rigs, LLMs, and local self-hosting know-how.</div>
+        </div>
+        <!-- 10. Data Engineering -->
         <div class="ccard">
           <div class="cchead"><div class="ccrail" style="background:var(--c-data)"></div><div class="cctitle">Data Engineering</div></div>
           <div class="chips">
@@ -327,26 +298,7 @@
             <span class="chip"><a href="https://www.reddit.com/r/duckdb" target="_blank">r/duckdb</a></span>
             <span class="chip"><a href="https://www.reddit.com/r/polars" target="_blank">r/polars</a></span>
           </div>
-          <div class="ccwhy">Pipelines, testing, and fast data tooling.</div>
-        </div>
-
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-career)"></div><div class="cctitle">Career Realists</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/cscareerquestions" target="_blank">r/cscareerquestions</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/ExperiencedDevs" target="_blank">r/ExperiencedDevs</a></span>
-          </div>
-          <div class="ccwhy">Trade offs, mentoring, and clear eyed growth advice.</div>
-        </div>
-
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-gpu)"></div><div class="cctitle">GPU / AI Infra</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank">r/LocalLLaMA</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/selfhosted" target="_blank">r/selfhosted</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/deeplearning" target="_blank">r/deeplearning</a></span>
-          </div>
-          <div class="ccwhy">Hands on GPU rigs, local LLMs, and self hosting know how.</div>
+          <div class="ccwhy">Focus on pipelines, testing, and modern analytical tooling.</div>
         </div>
       </div>
     </section>
@@ -355,7 +307,13 @@
     <section class="section" id="users-included">
       <h2>Users included in this analysis</h2>
       <p class="sub">Each link goes to a public Reddit profile.</p>
-      <div class="userchips" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      <style>
+        .userchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+        .userchip{background:#140f22;border:1px solid #2a2550;border-radius:999px;padding:6px 10px;text-align:center}
+        .userchip a{color:#bb86fc;text-decoration:none;font-weight:600}
+        .userchip a:hover{text-decoration:underline}
+      </style>
+      <div class="userchips">
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/ketralnis">ketralnis</a></span>
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/soap94">soap94</a></span>
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/dpark">dpark</a></span>
@@ -392,22 +350,19 @@
     <!-- Discussion section -->
     <div class="section discussion">
       <h2>Network Summary</h2>
-      <p>This description synthesizes patterns observed in the uploaded user profiles and posts. It aims to describe observed behaviors rather than prescribe what developers should do. Across the sample, users tend to favor demonstrated rigor, minimal reproducible examples, and open discussion of trade‑offs. Critical reactions toward hype or opaque corporate abstractions are common, while testing discipline, OSS transparency, and clear documentation are often cited positively.</p>
+      <p>This description synthesizes patterns observed in the uploaded user profiles and posts. It aims to describe observed behaviors rather than prescribe what developers should do. Across the sample, users tend to favor demonstrated rigor, minimal reproducible examples, and open discussion of trade-offs. Critical reactions toward hype or opaque corporate abstractions are common, while testing discipline, OSS transparency, and clear documentation are often cited positively.</p>
       <p>The clusters shown in this dashboard summarize where conversations concentrate (e.g., language debates, systems safety, OSS mentoring, pragmatic web standards). Humor, concise critique, and small working demos frequently function as shorthand for credibility. These statements reflect the analyzed sample and timeframe and should be interpreted as directional rather than definitive claims about all developers.</p>
     </div>
 
     <!-- Sources / Citations -->
     <section class="section">
       <h2>Sources & Notes</h2>
-      <p class="sub">This view is built from a hand‑curated set of ~33 active r/programming users and their adjacent activity across related subreddits. It summarizes observed patterns; it does not imply endorsement.</p>
+      <p class="sub">This view is built from a hand-curated set of ~33 active r/programming users and their adjacent activity across related subreddits. It summarizes observed patterns; it does not imply endorsement.</p>
       <ul class="sub" style="margin:8px 0 12px 18px;line-height:1.5">
         <li>Scope: profiles and posts uploaded in this workspace; not a random or exhaustive sample.</li>
-        <li>Time‑bound: reflects the content available at the time of analysis.</li>
+        <li>Time-bound: reflects the content available at the time of analysis.</li>
         <li>Method: qualitative coding of user posts and profile activity; directional signals, not statistical claims.</li>
       </ul>
-      <div class="chips">
-        <!-- User chips intact -->
-      </div>
     </section>
   </main>
 </body>
