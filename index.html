@@ -379,12 +379,12 @@
       <h2>Users included in this analysis</h2>
       <p class="sub">Each link goes to a public Reddit profile.</p>
       <style>
-        .userchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-        .userchip{background:#140f22;border:1px solid #2a2550;border-radius:999px;padding:6px 10px;text-align:center}
-        .userchip a{color:#bb86fc;text-decoration:none;font-weight:600}
+        .userchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+        .userchip{background:#140f22;border:1px solid #2a2550;border-radius:999px;padding:8px 12px;text-align:center;display:flex;align-items:center;justify-content:center;max-width:100%}
+        .userchip a{color:#bb86fc;text-decoration:none;font-weight:600;display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .userchip a:hover{text-decoration:underline}
       </style>
-      <div class="userchips">
+      <div class="userchips" id="userchips">
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/ketralnis">ketralnis</a></span>
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/soap94">soap94</a></span>
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/dpark">dpark</a></span>
@@ -416,6 +416,10 @@
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Estpart">Estpart</a></span>
         <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Revolutionary_Ad7262">Revolutionary_Ad7262</a></span>
       </div>
+      <script>
+        // Add title tooltips for truncated names without altering layout
+        document.querySelectorAll('#userchips a').forEach(a=>{ a.title = a.textContent; });
+      </script>
     </section>
 
     <!-- Discussion section -->
