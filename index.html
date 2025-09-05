@@ -1,445 +1,476 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>r/programming Network – Community Map</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>r/programming — Solar System Network (D3)</title>
   <style>
     :root{
-      --bg:#0b0f14; --panel:#111826; --muted:#8ea0b5; --text:#e8f0fe; --brand:#60a5fa; --accent:#22d3ee; --ink:#223047;
-      --c-lang:#60a5fa;--c-ai:#f59e0b;--c-infra:#34d399;--c-web:#22d3ee;--c-rust:#fb7185;--c-oss:#a78bfa;--c-quant:#f472b6;--c-career:#94a3b8;--c-gpu:#ef4444;--c-data:#10b981;
-      --link:#bb86fc;
+      --bg:#0b0e16; --fg:#e6e7ea; --muted:#aeb2bb; --card:#111528; --ring:rgba(255,255,255,.12);
+      --shadow:0 10px 28px rgba(0,0,0,.45);
+      --a1:#7900C9; --a2:#3F36BA; --a3:#E3648C; --a4:#15777E; --a5:#E1B880; --a6:#7bdfff; --a7:#8d99ae; --a8:#EC7FFF; --a9:orange; --sun:#ffd166;
+      --link:#EC7FFF;
     }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
-    a{color:var(--link);text-decoration:underline}
-    a:hover{color:#e6b8ff}
-    header{padding:28px 20px 8px;border-bottom:1px solid #1c2737;background:radial-gradient(1200px 400px at 10% -10%,rgba(96,165,250,.12),transparent),radial-gradient(900px 300px at 90% -20%,rgba(34,211,238,.12),transparent)}
-    .container{max-width:1200px;margin:0 auto;padding:0 16px}
-    h1{margin:0 0 8px;font-size:28px;letter-spacing:.2px}
-    .sub{color:var(--muted);font-size:14px}
-    .lbl{font-size:14px;fill:#e6f1ff}
-    .meta{font-size:16px;fill:#e6f1ff;font-weight:700;paint-order:stroke;stroke:#0b0f14;stroke-width:3px}
-    .section{margin-top:28px}
-    .section h2{font-size:20px;margin-bottom:10px;color:var(--text)}
-    .discussion p{margin:0 0 14px;line-height:1.6}
-    .chips{display:flex;flex-wrap:wrap;gap:8px}
-    .chip{background:#1f2a3a;color:#cfe0ff;border:1px solid #253248;border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
-    .chip a{color:#cfe0ff;text-decoration:none}
-  @media (max-width:760px){#clusters-radial{display:none;}}
-    </style>
+    html,body{height:100%}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:#ffffff}
+    header{position:sticky; top:0; z-index:10; background:#0b0e16cc; backdrop-filter:blur(8px); border-bottom:1px solid var(--ring)}
+    .wrap{max-width:1200px; margin:0 auto; padding:16px 20px}
+    .title{display:flex; align-items:center; gap:10px}
+    h1{font-size:20px; margin:0}
+    .sub{font-size:12px; color:var(--muted)}
+
+    .grid{display:grid; grid-template-columns:1fr 320px; gap:16px; padding:0 20px; max-width:1200px; margin:0 auto}
+    @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+
+    .card{background:var(--card); border:1px solid var(--ring); border-radius:18px; box-shadow:var(--shadow); padding:20px; margin:20px auto; max-width:1200px}
+    .card h2{margin:0; font-size:16px; padding-bottom:10px; border-bottom:1px solid var(--ring)}
+    .card .body{padding:14px 0}
+
+    .viz{position:relative; min-height:620px}
+    @media (max-width:600px){ .viz{min-height:520px} }
+    svg{display:block; width:100%; height:100%}
+
+    .tooltip{position:absolute; pointer-events:none; background:#0b0e16; border:1px solid var(--ring); padding:8px 10px; border-radius:10px; font-size:12px; color:var(--fg); box-shadow:var(--shadow); max-width:280px; opacity:0}
+    .tooltip a{ color:var(--link); text-decoration:none }
+
+    .orbit{fill:none; stroke:rgba(255,255,255,.12)}
+    .planet{stroke:rgba(0,0,0,.35)}
+    .label{fill:#e6e7ea; font-size:12px; text-anchor:middle}
+    .connection{fill:none; stroke:#a9b0bb; stroke-opacity:.7}
+    .connection.friction{stroke-dasharray:5 4}
+
+    .legend{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+    .legend-item{display:flex; align-items:center; gap:8px; font-size:13px}
+    .swatch{width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.25)}
+
+    .controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:8px 0 12px}
+    .badge{display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.06); border:1px solid var(--ring); border-radius:999px; padding:6px 10px; font-size:12px}
+    .btn{appearance:none;border:1px solid var(--ring);background:rgba(255,255,255,.06);color:var(--fg);padding:6px 10px;border-radius:10px;cursor:pointer}
+
+    /* Sun label */
+    .sunlabel{font-size:12px;fill:#ffffff;font-weight:700;text-anchor:middle}
+    .sunlabel-stroke{fill:none;stroke:#e0b85a;stroke-width:4px;opacity:.85}
+
+    /* Section scaffolding */
+    .section-title{max-width:1200px;margin:32px auto 8px;padding:0 20px;font-size:18px;color:#f0f1f5}
+    .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:1200px;margin:0 auto 36px;padding:0 20px}
+    .cluster-card h3{margin:0;font-size:15px;padding:12px 16px;border-bottom:1px solid var(--ring)}
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid var(--ring);background:rgba(236,127,255,.12);color:var(--link);text-decoration:none;font-size:12px}
+    .rel-block{margin-top:10px}
+    .rel-title{font-size:11px;color:var(--muted);margin:0 0 6px}
+    .pill{display:inline-flex;align-items:center;padding:4px 8px;border-radius:999px;border:1px solid var(--ring);font-size:12px}
+    .pill.ally{background:rgba(21,119,126,.15);color:#7bdfff;border-color:rgba(123,223,255,.35)}
+    .pill.friction{background:rgba(227,100,140,.12);color:#E3648C;border-color:rgba(227,100,140,.35)}
+    .eyebrow{ text-transform:uppercase; font-size:11px; letter-spacing:.12em; color:var(--muted); margin-bottom:6px }
+    .nice-list{list-style:none;padding-left:0;margin:12px 0}
+    .nice-list li{margin:8px 0;line-height:1.5}
+    .mini-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:14px 0}
+    .mini-card{background:rgba(255,255,255,.04);border:1px solid var(--ring);border-radius:14px;padding:14px}
+    .mini-card h3{margin:0 0 8px;font-size:14px;color:#fff}
+    .mini-card ul{margin:8px 0 0 18px}
+  </style>
 </head>
 <body>
   <header>
-    <div class="container">
-      <h1>r/programming Network – Community Map</h1>
-      <div class="sub">Built from ~33 core technical users • September 3, 2025</div>
+    <div class="wrap title">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--sun)"></div>
+      <div>
+        <h1>r/programming — Solar System Network</h1>
+        <div class="sub">Sun = r/programming • 9 clusters as planets • Large planets orbit closer; small ones further • Tap to show connections</div>
+      </div>
     </div>
   </header>
 
-  <main class="container">
-    <!-- Radial Map -->
-    <section class="section" id="clusters-radial" style="display:block;">
-      <h2>Clusters (Radial Map)</h2>
-      <p class="sub">r/programming sits at the center, with clusters orbiting like a constellation. Colors = cluster families.</p>
-      <div id="radialmap" style="position:relative;width:100%;height:520px"></div>
-      <style>
-        @media (max-width:760px){#clusters-radial{display:none;}}
-        #radialmap .label{cursor:pointer}
-        /* Popover for label clicks */
-        #radialmap .popover{position:absolute;min-width:220px;max-width:340px;background:#0f1625;border:1px solid #1b2a40;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:10px 12px 12px;z-index:5}
-        #radialmap .popover .ttl{font-weight:700;margin-bottom:8px;color:#e6f1ff}
-        #radialmap .popover .chips{display:flex;flex-wrap:wrap;gap:8px}
-        #radialmap .popover .chip{background:#1f2a3a;color:#cfe0ff;border:1px solid #253248;border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
-        #radialmap .popover .chip a{color:#cfe0ff;text-decoration:none}
-      </style>
-      <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-      <script>
-        (function(){
-          const host = document.getElementById('radialmap');
-          const css = getComputedStyle(document.documentElement);
-          const C = n => css.getPropertyValue(n).trim();
+  <!-- Intro -->
+  <section class="card prose">
+    <h2>Where else do active users of r/programming post?</h2>
+    <p>We looked at <span style='color:var(--link);font-weight:600'>52 active Reddit users</span> in r/programming. Not just one-off commenters or bots—people who regularly join conversations. From there, we grouped them into clusters based on the kinds of threads they jump into, the themes they care about, and which subreddits overlap. Think of clusters less like stereotypes and more like patterns of participation.</p>
+    <p><span style='color:var(--link);font-weight:600'>Why 52?</span> That’s a sweet spot. Big enough to see clear cultural patterns, but not so big that everything blurs together. With 50+ users we cover most of the major participation types while still keeping things easy to follow. Going much bigger—say 100 or 200—would mostly add edge cases and noise.</p>
+    <p>Our goal is to show how r/programming works as a cultural space: a mix of <b>technical debates, workplace talk, ideology, and global voices</b>. This sets the stage for a Developer Cultural Brief—a guide to the values and tensions shaping today’s programming culture online.</p>
+  </section>
 
-          // Data with related subreddit chips for popovers
-          const DATA = [
-            {name:'Language Wars', color:C('--c-lang'), pct:33, subs:['r/rust','r/golang','r/cpp','r/java','r/python']},
-            {name:'Pragmatist Engineers', color:C('--c-infra'), pct:21, subs:['r/apachekafka','r/vscode','r/JetBrains','r/IntelliJIDEA','r/angular']},
-            {name:'AI Skeptics / Policy', color:C('--c-ai'), pct:18, subs:['r/MachineLearning','r/Futurology','r/LocalLLaMA','r/technology']},
-            {name:'Webdev Pragmatists', color:C('--c-web'), pct:15, subs:['r/webdev','r/javascript','r/css','r/vuejs']},
-            {name:'Rust & Systems', color:C('--c-rust'), pct:12, subs:['r/rust','r/Zig','r/osdev']},
-            {name:'OSS Guardians', color:C('--c-oss'), pct:9, subs:['r/linux','r/archlinux','r/selfhosted','r/foss']},
-            {name:'Quantum / HPC', color:C('--c-quant'), pct:9, subs:['r/QuantumComputing','r/HPC','r/compsci']},
-            {name:'Career Realists', color:C('--c-career'), pct:6, subs:['r/cscareerquestions','r/ExperiencedDevs']},
-            {name:'GPU / AI Infra', color:C('--c-gpu'), pct:3, subs:['r/LocalLLaMA','r/selfhosted','r/deeplearning']},
-            {name:'Data Engineering', color:C('--c-data'), pct:3, subs:['r/dataengineering','r/sql','r/duckdb']}
-          ];
-
-          function ensurePopover(){
-            let pop = host.querySelector('.popover');
-            if(!pop){
-              pop = document.createElement('div');
-              pop.className = 'popover';
-              pop.style.display = 'none';
-              pop.innerHTML = '<div class="ttl"></div><div class="chips"></div>';
-              host.appendChild(pop);
-              // click inside popover dismisses it
-              pop.addEventListener('click', ()=> pop.style.display='none');
-            }
-            return pop;
-          }
-
-          function showPopover(x,y,title,subs){
-            const pop = ensurePopover();
-            const ttl = pop.querySelector('.ttl');
-            const chips = pop.querySelector('.chips');
-            // toggle if same target
-            if(pop.style.display==='block' && ttl.textContent===title){
-              pop.style.display='none';
-              return;
-            }
-            ttl.textContent = title;
-            chips.innerHTML = '';
-            (subs||[]).forEach(s=>{
-              const el = document.createElement('span');
-              el.className='chip';
-              const a = document.createElement('a');
-              a.href = 'https://www.reddit.com/' + s.replace(/^\//,'');
-              a.target = '_blank';
-              a.textContent = s;
-              el.appendChild(a);
-              chips.appendChild(el);
-            });
-            if(!(subs&&subs.length)){
-              const none = document.createElement('div');
-              none.style.color = '#9fb2cc';
-              none.style.fontSize = '12px';
-              none.textContent = 'No subreddit links yet for this cluster.';
-              chips.appendChild(none);
-            }
-            const svgRect = host.querySelector('svg').getBoundingClientRect();
-            const hostRect = host.getBoundingClientRect();
-            const left = (x + svgRect.left) - hostRect.left + 12;
-            const top  = (y + svgRect.top)  - hostRect.top  + 12;
-            pop.style.left = Math.round(left) + 'px';
-            pop.style.top  = Math.round(top)  + 'px';
-            pop.style.display = 'block';
-          }
-
-          function render(){
-            const width = Math.max(360, host.getBoundingClientRect().width || host.offsetWidth || 800);
-            const height = 520;
-            host.innerHTML = '';
-
-            const svg = d3.select(host).append('svg')
-              .attr('width', width)
-              .attr('height', height);
-
-            const center = {x: width/2, y: height/2};
-            const maxOrbit = Math.min(width, height)/2 - 70;
-
-            const pctMax = d3.max(DATA, d => d.pct);
-            const pctMin = d3.min(DATA, d => d.pct);
-            const rScale = d3.scaleLinear().domain([3, pctMax]).range([5, 26]).clamp(true);
-            const orbitScale = d3.scaleLinear().domain([pctMin, pctMax]).range([maxOrbit, maxOrbit*0.6]).clamp(true);
-            const spokeScale = d3.scaleLinear().domain([pctMin, pctMax]).range([1.2, 3.2]).clamp(true);
-
-            const defs = svg.append('defs');
-            const filter = defs.append('filter').attr('id','glow').attr('x','-50%').attr('y','-50%').attr('width','200%').attr('height','200%');
-            filter.append('feGaussianBlur').attr('stdDeviation',4).attr('result','coloredBlur');
-            const merge = filter.append('feMerge');
-            merge.append('feMergeNode').attr('in','coloredBlur');
-            merge.append('feMergeNode').attr('in','SourceGraphic');
-
-            // draw spokes, nodes, labels
-            DATA.forEach((cl,i)=>{
-              const angle = (i/DATA.length)*2*Math.PI;
-              const R = orbitScale(cl.pct);
-              const x = center.x + R*Math.cos(angle);
-              const y = center.y + R*Math.sin(angle);
-              const rr = rScale(cl.pct);
-
-              const g = svg.append('g');
-              g.append('line').attr('x1',center.x).attr('y1',center.y).attr('x2',x).attr('y2',y).attr('stroke','#1b2a40').attr('stroke-width',spokeScale(cl.pct));
-              g.append('circle').attr('cx',x).attr('cy',y).attr('r',rr).attr('fill','none').attr('stroke',cl.color).attr('stroke-width',2);
-
-              const labelR = Math.max(R + rr + 12, maxOrbit + 12);
-              const lx = center.x + labelR*Math.cos(angle);
-              const ly = center.y + labelR*Math.sin(angle);
-              const cosA = Math.cos(angle);
-              let anchor = 'middle';
-              if(cosA>0.35) anchor='start'; else if(cosA<-0.35) anchor='end';
-              g.append('line').attr('x1',x + rr*Math.cos(angle)).attr('y1',y + rr*Math.sin(angle)).attr('x2',lx).attr('y2',ly).attr('stroke','#273248');
-              g.append('text').attr('class','label').attr('x',lx).attr('y',ly).attr('text-anchor',anchor).attr('fill','#e6f1ff').style('font-size','12px').text(cl.name)
-                .on('click',()=>{ showPopover(lx, ly, cl.name + ' — Related Subreddits', cl.subs||[]); });
-            });
-
-            // draw center last so it sits above lines
-            const centerG = svg.append('g');
-            centerG.append('circle').attr('cx',center.x).attr('cy',center.y).attr('r',56).attr('fill','#0b0f14').attr('opacity',0.96).attr('stroke','#1b2a40').attr('stroke-width',2);
-            centerG.append('text').attr('x',center.x).attr('y',center.y+4).attr('text-anchor','middle').attr('fill','#e6f1ff').style('font-size','14px').style('font-weight','700').attr('filter','url(#glow)').text('r/programming');
-
-            // click outside to dismiss
-            svg.on('click',(evt)=>{
-              const pop = host.querySelector('.popover');
-              if(!pop) return;
-              if(evt.target && evt.target.classList && evt.target.classList.contains('label')) return;
-              pop.style.display='none';
-            });
-          }
-
-          render();
-          window.addEventListener('resize', render);
-        })();
-      </script>
-    </section>
-
-    <!-- Cluster bar chart -->
-    <section class="section" id="clusters-bars">
-      <h2>Clusters (Bar Map)</h2>
-      <p class="sub">Share of core users by cluster. Color = cluster family. Values are percentages.</p>
-      <div class="card" style="padding:14px">
-        <div class="barlist" id="barlist"></div>
-      </div>
-      <style>
-        .barlist{display:grid;gap:10px}
-        .barrow{display:grid;grid-template-columns:1.6fr 5fr;align-items:center;gap:12px;background:#0f1625;border:1px solid #1b2a40;border-radius:12px;padding:10px}
-        .barname{font-weight:700;color:#e6f1ff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-        .bartrack{position:relative;height:14px;border-radius:999px;background:#0c1422;border:1px solid #223047;overflow:hidden}
-        .barfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;display:flex;justify-content:flex-end;align-items:center;padding-right:8px;color:#fff;font-weight:700;font-size:12px}
-        .barpct{font-weight:700;color:#e6f1ff;text-align:right}
-        @media (max-width:760px){
-          .barrow{grid-template-columns:1fr;grid-template-rows:auto auto auto}
-          .barname{grid-row:1}
-          .bartrack{grid-row:2}
-          .barpct{grid-row:3;justify-self:end}
-        }
-      </style>
-      <script>
-        (function(){
-          const css = getComputedStyle(document.documentElement);
-          const c = n => css.getPropertyValue(n).trim();
-          const data = [
-            {name:'Language Wars', pct:33, color:c('--c-lang')},
-            {name:'Pragmatist Engineers', pct:21, color:c('--c-infra')},
-            {name:'AI Skeptics / Policy', pct:18, color:c('--c-ai')},
-            {name:'Webdev Pragmatists', pct:15, color:c('--c-web')},
-            {name:'Rust & Systems', pct:12, color:c('--c-rust')},
-            {name:'OSS Guardians', pct:9, color:c('--c-oss')},
-            {name:'Quantum / HPC', pct:9, color:c('--c-quant')},
-            {name:'Career Realists', pct:6, color:c('--c-career')},
-            {name:'GPU / AI Infra', pct:3, color:c('--c-gpu')},
-            {name:'Data Engineering', pct:3, color:c('--c-data')}
-          ];
-          const root = document.getElementById('barlist');
-          root.innerHTML = '';
-          data.forEach(d => {
-            const row = document.createElement('div');
-            row.className = 'barrow';
-            row.innerHTML = `
-              <div class=\"barname\" title=\"${d.name}\">${d.name}</div>
-              <div class=\"bartrack\">
-                <div class=\"barfill\" style=\"background:${d.color}; width:${d.pct}%;\"></div>
-                <div class=\"barpct\" style=\"position:absolute; left:calc(${d.pct}% + 6px); top:50%; transform:translateY(-50%); font-weight:700; color:#e6f1ff; font-size:12px;\">${d.pct}%</div>
-              </div>
-            `;
-            root.appendChild(row);
-          });
-        })();
-      </script>
-    </section>
-
-    <!-- Related subreddits table -->
-    <section class="section" id="related-subs">
-      <h2>Explore Related Subreddits</h2>
-      <p class="sub">Each cluster has its own flavor. Below are subreddit clusters shown as cards with color rails and easy-to-scan chips.</p>
-
-      <style>
-        .cluster-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:12px}
-        .ccard{background:#0f1625;border:1px solid #1b2a40;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
-        .cchead{display:flex;align-items:center;gap:10px}
-        .ccrail{width:10px;height:28px;border-radius:4px}
-        .cctitle{font-weight:700;font-size:15px;color:#e6f1ff}
-        .chips{display:flex;flex-wrap:wrap;gap:8px}
-        .chip{background:#1f2a3a;color:#cfe0ff;border:1px solid #253248;border-radius:999px;padding:4px 8px;font-size:12px;white-space:nowrap}
-        .chip a{color:#cfe0ff;text-decoration:none}
-        .ccwhy{font-size:13px;color:#9fb2cc;line-height:1.4}
-      </style>
-
-      <div class="cluster-cards">
-        <!-- 1. Language Wars -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-lang)"></div><div class="cctitle">Language Wars</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/rust" target="_blank">r/rust</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/golang" target="_blank">r/golang</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/cpp" target="_blank">r/cpp</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/java" target="_blank">r/java</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/python" target="_blank">r/python</a></span>
-          </div>
-          <div class="ccwhy">Debates over programming languages — spirited but technical arguments that shape credibility.</div>
-        </div>
-        <!-- 2. Pragmatist Engineers -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-infra)"></div><div class="cctitle">Pragmatist Engineers</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/apachekafka" target="_blank">r/apachekafka</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/vscode" target="_blank">r/vscode</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/JetBrains" target="_blank">r/JetBrains</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/IntelliJIDEA" target="_blank">r/IntelliJIDEA</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/angular" target="_blank">r/angular</a></span>
-          </div>
-          <div class="ccwhy">Integration tests, Kafka/DBs, and practical IDE workflows; bias toward "boring tech that works".</div>
-        </div>
-        <!-- 3. AI Skeptics & Policy -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-ai)"></div><div class="cctitle">AI Skeptics &amp; Policy</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/MachineLearning" target="_blank">r/MachineLearning</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/Futurology" target="_blank">r/Futurology</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank">r/LocalLLaMA</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/technology" target="_blank">r/technology</a></span>
-          </div>
-          <div class="ccwhy">Pushback on AI hype; concern with regulation, privacy, and societal impact.</div>
-        </div>
-        <!-- 4. Webdev Pragmatists -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-web)"></div><div class="cctitle">Webdev Pragmatists</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/webdev" target="_blank">r/webdev</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/javascript" target="_blank">r/javascript</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/css" target="_blank">r/css</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/vuejs" target="_blank">r/vuejs</a></span>
-          </div>
-          <div class="ccwhy">Focus on clarity, maintainability, and developer experience over hype.</div>
-        </div>
-        <!-- 5. Rust & Systems -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-rust)"></div><div class="cctitle">Rust &amp; Systems Builders</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/rust" target="_blank">r/rust</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/Zig" target="_blank">r/Zig</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/osdev" target="_blank">r/osdev</a></span>
-          </div>
-          <div class="ccwhy">Systems-level safety and performance; crate culture, tooling, and low-level mastery.</div>
-        </div>
-        <!-- 6. OSS Guardians -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-oss)"></div><div class="cctitle">OSS Guardians</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/linux" target="_blank">r/linux</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/archlinux" target="_blank">r/archlinux</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/selfhosted" target="_blank">r/selfhosted</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/foss" target="_blank">r/foss</a></span>
-          </div>
-          <div class="ccwhy">Open-source transparency and helping newcomers; anti-hype culture.</div>
-        </div>
-        <!-- 7. Quantum / HPC -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-quant)"></div><div class="cctitle">Quantum / HPC</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/QuantumComputing" target="_blank">r/QuantumComputing</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/HPC" target="_blank">r/HPC</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/compsci" target="_blank">r/compsci</a></span>
-          </div>
-          <div class="ccwhy">Mix of research and engineering; optimism vs realism in quantum futures.</div>
-        </div>
-        <!-- 8. Career Realists -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-career)"></div><div class="cctitle">Career Realists</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/cscareerquestions" target="_blank">r/cscareerquestions</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/ExperiencedDevs" target="_blank">r/ExperiencedDevs</a></span>
-          </div>
-          <div class="ccwhy">Trade-offs, mentorship, and pragmatic career advice — "boring tech pays."</div>
-        </div>
-        <!-- 9. GPU / AI Infra -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-gpu)"></div><div class="cctitle">GPU / AI Infra</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank">r/LocalLLaMA</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/selfhosted" target="_blank">r/selfhosted</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/deeplearning" target="_blank">r/deeplearning</a></span>
-          </div>
-          <div class="ccwhy">Hands-on GPU rigs, LLMs, and local self-hosting know-how.</div>
-        </div>
-        <!-- 10. Data Engineering -->
-        <div class="ccard">
-          <div class="cchead"><div class="ccrail" style="background:var(--c-data)"></div><div class="cctitle">Data Engineering</div></div>
-          <div class="chips">
-            <span class="chip"><a href="https://www.reddit.com/r/dataengineering" target="_blank">r/dataengineering</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/sql" target="_blank">r/sql</a></span>
-            <span class="chip"><a href="https://www.reddit.com/r/duckdb" target="_blank">r/duckdb</a></span>          
-          </div>
-          <div class="ccwhy">Focus on pipelines, testing, and modern analytical tooling.</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Contributors / Users -->
-    <section class="section" id="users-included">
-      <h2>Users included in this analysis</h2>
-      <p class="sub">Each link goes to a public Reddit profile.</p>
-      <style>
-        .userchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
-        .userchip{background:#140f22;border:1px solid #2a2550;border-radius:999px;padding:8px 12px;text-align:center;display:flex;align-items:center;justify-content:center;max-width:100%}
-        .userchip a{color:#bb86fc;text-decoration:none;font-weight:600;display:block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .userchip a:hover{text-decoration:underline}
-      </style>
-      <div class="userchips" id="userchips">
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/ketralnis">ketralnis</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/soap94">soap94</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/dpark">dpark</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/crap-with-feet">crap-with-feet</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/NoVibeCoding">NoVibeCoding</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/YetiBarBar">YetiBarBar</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/TwentyCharactersShor">TwentyCharactersShor</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/shevy-java">shevy-java</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/lelanthran">lelanthran</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/victotronics">victotronics</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Hydro4112">Hydro4112</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/eeriemyxi">eeriemyxi</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/JayBoingBoing">JayBoingBoing</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/ferreira-tb">ferreira-tb</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/donutloop">donutloop</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/BlueGoliath">BlueGoliath</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Big_Combination9890">Big_Combination9890</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Determinant">Determinant</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/fiskfisk">fiskfisk</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/zarinfam">zarinfam</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/NostraDavid">NostraDavid</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Conscious-Ball8373">Conscious-Ball8373</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/todo_code">todo_code</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/AyrA_ch">AyrA_ch</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/gyroda">gyroda</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/rcfox">rcfox</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/reddituser567853">reddituser567853</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/nekokattt">nekokattt</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Estpart">Estpart</a></span>
-        <span class="userchip"><a target="_blank" href="https://www.reddit.com/user/Revolutionary_Ad7262">Revolutionary_Ad7262</a></span>
-      </div>
-      <script>
-        // Add title tooltips for truncated names without altering layout
-        document.querySelectorAll('#userchips a').forEach(a=>{ a.title = a.textContent; });
-      </script>
-    </section>
-
-    <!-- Discussion section -->
-    <div class="section discussion">
-      <h2>Network Summary</h2>
-      <p>This description synthesizes patterns observed in the uploaded user profiles and posts. It aims to describe observed behaviors rather than prescribe what developers should do. Across the sample, users tend to favor demonstrated rigor, minimal reproducible examples, and open discussion of trade-offs. Critical reactions toward hype or opaque corporate abstractions are common, while testing discipline, OSS transparency, and clear documentation are often cited positively.</p>
-      <p>The clusters shown in this dashboard summarize where conversations concentrate (e.g., language debates, systems safety, OSS mentoring, pragmatic web standards). Humor, concise critique, and small working demos frequently function as shorthand for credibility. These statements reflect the analyzed sample and timeframe and should be interpreted as directional rather than definitive claims about all developers.</p>
+  <!-- Viz + controls -->
+  <section class="grid">
+    <div class="card viz" id="vizCard">
+      <svg id="solar" role="img" aria-label="Solar system layout of r/programming clusters" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tooltip" id="tooltip"></div>
     </div>
+    <aside class="card">
+      <h2>About this view</h2>
+      <div class="body">
+        <p class="muted">The <b>sun</b> at the center represents the subreddit. Each <b>planet</b> is a macro-zone; <b>size</b> shows users and <b>orbit distance</b> is inverted (bigger planets are closer). By default the system is <b>static</b> for clarity; toggle animation to gently orbit.</p>
+        <div class="controls">
+          <label><input type="checkbox" id="alliancesCk" checked> Alliances</label>
+          <label><input type="checkbox" id="frictionsCk" checked> Frictions</label>
+          <label><input type="checkbox" id="labelsCk" checked> Labels</label>
+          <label><input type="checkbox" id="animateCk"> Animate</label>
+          <button id="recenterBtn" class="btn">Re-center</button>
+        </div>
+        <div class="legend" id="legend"></div>
+        <hr style="border:none;border-top:1px solid var(--ring); margin:14px 0">
+        <div class="badge">Users sampled: 52</div>
+      </div>
+    </aside>
+  </section>
 
-    <!-- Sources / Citations -->
-    <section class="section">
-      <h2>Sources & Notes</h2>
-      <p class="sub">This view is built from a hand-curated set of ~33 active r/programming users and their adjacent activity across related subreddits. It summarizes observed patterns; it does not imply endorsement.</p>
-      <ul class="sub" style="margin:8px 0 12px 18px;line-height:1.5">
-        <li>Scope: profiles and posts uploaded in this workspace; not a random or exhaustive sample.</li>
-        <li>Time-bound: reflects the content available at the time of analysis.</li>
-        <li>Method: qualitative coding of user posts and profile activity; directional signals, not statistical claims.</li>
-      </ul>
-    </section>
-  </main>
+  <!-- Clusters explainer -->
+  <h2 class="section-title">What Are Clusters?</h2>
+  <section class="card prose">
+    <div class="eyebrow">Definition</div>
+    <p class="muted" style="margin-top:0">A cluster is a grouping of users who share a mode of participation:</p>
+    <ul class="nice-list">
+      <li>🗣️ The kinds of threads they enter (language wars, AI debates, OSS launches).</li>
+      <li>⚖️ The stance they take (skeptical, evangelical, pragmatic, political).</li>
+      <li>🌐 Their adjacent subreddit ecology (e.g., <span style="color:var(--link)">r/programming</span> + <span style="color:var(--link)">r/webdev</span> + <span style="color:var(--link)">r/vscode</span>).</li>
+    </ul>
+    <div class="callout">Clusters aren’t beliefs; they’re patterns of identity and belonging. They help us see programming as labor, rhetoric, politics, and craft.</div>
+    <p>By aggregating clusters, macro-zones emerge—like <em>Systems Core</em>, <em>Language Debaters</em>, and the <em>AI Frontier</em>. These make r/programming legible as cultural forces in dialogue and tension.</p>
+  </section>
+
+  <!-- Subreddit anchors -->
+  <h2 class="section-title">Subreddit Anchors by Cluster</h2>
+  <section class="cards-grid" id="clusterCards"></section>
+
+  <!-- Exemplars table -->
+  <h2 class="section-title">Representative Exemplars (by Cluster)</h2>
+  <section class="card prose">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid var(--ring)">Macro-Zone</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid var(--ring)">Representative Take</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Systems and Reliability Core</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Throughput gains and correctness matter more than convenience.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Language and Framework Debaters</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Interop and style debates define adoption more than features.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">AI and Experimentation Frontier</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Hallucination isn’t a bug, it’s lying.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Makers and Evangelists</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Blending memes with OSS launches helps tools spread.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Workplace, Careers and Labor Politics</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Engineering should be democratic: consensus, voting, due process.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Policy, Law and Governance</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Compliance and law shape the limits of what developers can build.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Explainers and Niche Specialists</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Clear explanations of async, gRPC, and engines help others move faster.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Regional and Cultural Anchors</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Mixing Brazilian or Nordic politics with Rust or DuckDB shows local inflection.</em></td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Edge Voices and Cultural Critics</td><td style="padding:8px;border-bottom:1px solid var(--ring)"><em>Challenging consensus keeps programming culture honest.</em></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Selection standards -->
+  <h2 class="section-title">User Selection Standards</h2>
+  <section class="card prose">
+    <p class="muted">We included a user if they met most of these:</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid var(--ring)">Criterion</th>
+          <th style="text-align:left;padding:8px;border-bottom:1px solid var(--ring)">Requirement</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Posting volume</td><td style="padding:8px;border-bottom:1px solid var(--ring)">3–5 posts in last 6–12 months, OR 20+ comments</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Recency</td><td style="padding:8px;border-bottom:1px solid var(--ring)">Active in the last 3–6 months</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Engagement</td><td style="padding:8px;border-bottom:1px solid var(--ring)">Some posts with &gt;5 upvotes</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Breadth</td><td style="padding:8px;border-bottom:1px solid var(--ring)">Also active in at least two dev subreddits (e.g., r/rust, r/webdev, r/ExperiencedDevs)</td></tr>
+        <tr><td style="padding:8px;border-bottom:1px solid var(--ring)">Exclusions</td><td style="padding:8px;border-bottom:1px solid var(--ring)">Bots, spam, meme-only accounts</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:12px" class="muted">This helps us treat these users as cultural nodes—stable enough to represent positions in r/programming’s ongoing discourse.</p>
+  </section>
+
+  <!-- Users list -->
+  <h2 class="section-title">Usernames Analyzed (52)</h2>
+  <section class="cards-grid" id="userCards"></section>
+
+  <!-- Next steps -->
+  <h2 class="section-title">Next Steps</h2>
+  <section class="card prose">
+    <p>Personas usually flatten people into stereotypes. Our cluster analysis is a better alternative: it shows the different roles people play in the community. Personas answer <em>who</em> the user is. Clusters explain why they act, how they talk, and what habits and tools they rely on. That’s more useful for strategy because it highlights real tensions, overlaps, and everyday practices—not just demographics.</p>
+    <p>With this work, we see which types of users shape r/programming, how they group, and where the conflicts are. Next, we’ll dive into specific subreddits to surface the beliefs, language, and rituals that animate these clusters.</p>
+    <div class="mini-grid">
+      <div class="mini-card">
+        <h3>Recommended Subreddits</h3>
+        <ul>
+          <li><a href="https://www.reddit.com/r/ExperiencedDevs" target="_blank" rel="noopener" style="color:#EC7FFF">r/ExperiencedDevs</a> – Career stories, mentoring, workplace talk</li>
+          <li><a href="https://www.reddit.com/r/rust" target="_blank" rel="noopener" style="color:#EC7FFF">r/rust</a> – Reliability, performance, language debates</li>
+          <li><a href="https://www.reddit.com/r/LocalLLaMA" target="_blank" rel="noopener" style="color:#EC7FFF">r/LocalLLaMA</a> – AI tools, builders, skeptics</li>
+        </ul>
+      </div>
+      <div class="mini-card">
+        <h3>Why This Matters</h3>
+        <ul>
+          <li style="margin-bottom:10px">Clusters show <em>who</em> shapes culture</li>
+          <li style="margin-bottom:10px">Subreddits reveal <em>how</em> culture is lived</li>
+          <li style="margin-bottom:10px">Together they give us a cultural brief that’s clear and human</li>
+        </ul>
+      </div>
+      <div class="mini-card">
+        <h3>How GitKraken Can Use This</h3>
+        <ul>
+          <li><b>Align messaging:</b> Speak to reliability, transparency, empowerment</li>
+          <li><b>Avoid pitfalls:</b> Skip the hype and corporate jargon</li>
+          <li><b>Build trust:</b> Use the language developers use in their own spaces</li>
+        </ul>
+      </div>
+    </div>
+    <p class="muted">These three dives connect technical debates, workplace politics, and AI disruption—giving us a cultural brief that’s easy to use and true to how developers talk.</p>
+  </section>
+
+  <!-- Methods note -->
+  <h2 class="section-title">Methods Note</h2>
+  <section class="card prose">
+    <div class="eyebrow">Limitations</div>
+    <p>This isn’t a full census of everyone on r/programming—it’s a snapshot. We picked <span style="color:var(--link);font-weight:600">52 users</span> who post often and across different threads so we could see real patterns. You’re looking at representative voices, not every voice. Going bigger mostly adds noise and edge cases.</p>
+    <p>This report isn’t academic research. It’s a practical read for industry teams. The goal is to show how developers talk, argue, and share values. For strategy, branding, or education, these patterns are strong enough to guide tone and positioning—without measuring every detail.</p>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script>
+  (function(){
+    const color = d3.scaleOrdinal()
+      .domain([
+        'Systems & Reliability Core','Language & Framework Debaters','AI & Experimentation Frontier','Makers & Evangelists','Regional & Cultural Anchors','Workplace, Careers & Labor Politics','Policy, Law & Governance','Explainers & Niche Specialists','Edge Voices & Cultural Critics'])
+      .range(['var(--a2)','var(--a1)','var(--a6)','var(--a4)','var(--a7)','var(--a3)','var(--a5)','var(--a8)','var(--a9)'])
+
+    const subreddits = {
+      'Systems & Reliability Core': ['r/rust','r/linux','r/devops','r/cpp'],
+      'Language & Framework Debaters': ['r/programming','r/webdev','r/csharp','r/typescript','r/learnprogramming'],
+      'AI & Experimentation Frontier': ['r/programming','r/LocalLLaMA','r/MachineLearning','r/vibecoding','r/ClaudeAI'],
+      'Makers & Evangelists': ['r/programming','r/opensource','r/vscode','r/npm','r/tauri','r/oss'],
+      'Regional & Cultural Anchors': ['r/dkudvikler','r/brasil','r/taquerosprogramadores'],
+      'Workplace, Careers & Labor Politics': ['r/ExperiencedDevs','r/cscareerquestions','r/developersIndia','r/UKJobs'],
+      'Policy, Law & Governance': ['r/programming','r/technology','r/environment','r/canada'],
+      'Explainers & Niche Specialists': ['r/Python','r/AskProgramming','r/gamedev','r/unrealengine'],
+      'Edge Voices & Cultural Critics': ['r/programming','r/ExperiencedDevs']
+    }
+
+    const descriptions = {
+      'Systems & Reliability Core': 'Deep technical threads about systems programming, operating systems, and performance. Expect discussions of compilers, concurrency, and reliability.',
+      'Language & Framework Debaters': 'Ongoing arguments about which languages and frameworks are best; advice for learners; debates on readability and productivity.',
+      'AI & Experimentation Frontier': 'AI coding tools, LLM experiments, and critiques of AI-generated code. A mix of enthusiasm and skepticism.',
+      'Makers & Evangelists': 'Project announcements, open-source releases, tutorials. Members share and promote the tools they build.',
+      'Regional & Cultural Anchors': 'Developer talk grounded in local culture and language; tech with regional context and humor.',
+      'Workplace, Careers & Labor Politics': 'Salaries, hiring, workplace culture, and politics of being a developer; advice and complaints.',
+      'Policy, Law & Governance': 'How technology interacts with law, data regulation, and government policy; news and legal debates.',
+      'Explainers & Niche Specialists': 'Detailed posts explaining specific technical questions and niche tools like game engines.',
+      'Edge Voices & Cultural Critics': 'Critical takes on norms, workplace culture, or hype. Long comments that challenge consensus.'
+    }
+
+    const nodes = [
+      { id:'Systems & Reliability Core', size:8 },
+      { id:'Language & Framework Debaters', size:9 },
+      { id:'AI & Experimentation Frontier', size:6 },
+      { id:'Makers & Evangelists', size:7 },
+      { id:'Regional & Cultural Anchors', size:3 },
+      { id:'Workplace, Careers & Labor Politics', size:9 },
+      { id:'Policy, Law & Governance', size:1 },
+      { id:'Explainers & Niche Specialists', size:4 },
+      { id:'Edge Voices & Cultural Critics', size:2 }
+    ]
+
+    const links = [
+      { source:'Language & Framework Debaters', target:'Explainers & Niche Specialists', type:'alliance', weight:2 },
+      { source:'Language & Framework Debaters', target:'Makers & Evangelists', type:'alliance', weight:1 },
+      { source:'Language & Framework Debaters', target:'Workplace, Careers & Labor Politics', type:'friction', weight:2 },
+      { source:'AI & Experimentation Frontier', target:'Systems & Reliability Core', type:'alliance', weight:2 },
+      { source:'AI & Experimentation Frontier', target:'Workplace, Careers & Labor Politics', type:'friction', weight:2 },
+      { source:'Systems & Reliability Core', target:'Makers & Evangelists', type:'alliance', weight:1 },
+      { source:'Policy, Law & Governance', target:'Workplace, Careers & Labor Politics', type:'alliance', weight:1 },
+      { source:'Policy, Law & Governance', target:'Language & Framework Debaters', type:'friction', weight:1 },
+      { source:'Regional & Cultural Anchors', target:'Language & Framework Debaters', type:'alliance', weight:1 },
+      { source:'Regional & Cultural Anchors', target:'Makers & Evangelists', type:'alliance', weight:1 },
+      { source:'Edge Voices & Cultural Critics', target:'Workplace, Careers & Labor Politics', type:'friction', weight:1 },
+      { source:'Edge Voices & Cultural Critics', target:'AI & Experimentation Frontier', type:'friction', weight:1 }
+    ]
+
+    const alliesMap = new Map(nodes.map(n=>[n.id, []]))
+    const frictionsMap = new Map(nodes.map(n=>[n.id, []]))
+    links.forEach(l=>{
+      if(l.type==='alliance'){
+        if(!alliesMap.get(l.source).includes(l.target)) alliesMap.get(l.source).push(l.target)
+        if(!alliesMap.get(l.target).includes(l.source)) alliesMap.get(l.target).push(l.source)
+      } else {
+        if(!frictionsMap.get(l.source).includes(l.target)) frictionsMap.get(l.source).push(l.target)
+        if(!frictionsMap.get(l.target).includes(l.source)) frictionsMap.get(l.target).push(l.source)
+      }
+    })
+
+    const svg = d3.select('#solar')
+    const g = svg.append('g')
+    const orbitsG = g.append('g')
+    const linksG = g.append('g')
+    const planetsG = g.append('g')
+    const labelsG = g.append('g')
+
+    const tip = d3.select('#tooltip')
+    const alliancesCk = document.getElementById('alliancesCk')
+    const frictionsCk = document.getElementById('frictionsCk')
+    const labelsCk = document.getElementById('labelsCk')
+    const animateCk = document.getElementById('animateCk')
+    const recenterBtn = document.getElementById('recenterBtn')
+
+    const byId = new Map(nodes.map(d=>[d.id,d]))
+    const maxSize = d3.max(nodes, d=>d.size)
+    const planetR = d3.scaleSqrt().domain([1, maxSize]).range([8, 24])
+
+    let CX=0, CY=0, orbitScale
+
+    const sorted = nodes.slice().sort((a,b)=> b.size - a.size)
+    sorted.forEach((n,i)=> n._orbitIndex = i)
+
+    nodes.forEach((n)=>{ n.theta = Math.random()*Math.PI*2; n.speed = 0.0015*(1 + (sorted.length-n._orbitIndex)/sorted.length) })
+
+    function layout(){
+      const card = document.getElementById('vizCard')
+      const box = card.getBoundingClientRect()
+      let W = Math.floor(box.width)
+      let H = Math.floor(box.height)
+      if(!W || W < 320) W = Math.max(320, card.clientWidth || window.innerWidth - 360 || 800)
+      if(!H || H < 320) H = Math.max(560, card.clientHeight || window.innerHeight * 0.6 || 560)
+
+      svg.attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`)
+      CX=W/2; CY=H/2
+      const pad=28
+      const Rmax = Math.min(W,H)/2 - pad
+      const Rmin = 70
+      orbitScale = d3.scaleLinear().domain([0, sorted.length-1]).range([Rmin, Rmax])
+
+      g.attr('transform', `translate(${CX},${CY})`)
+
+      const sunG = g.selectAll('g.sun').data([1]).join('g').attr('class','sun')
+      sunG.selectAll('circle').data([1]).join('circle').attr('r',26).attr('fill','var(--sun)').attr('stroke','#e0b85a').attr('stroke-width',1.5)
+      sunG.selectAll('text.sunlabel-stroke').data([1]).join('text').attr('class','sunlabel sunlabel-stroke').attr('y',44).text('r/programming')
+      sunG.selectAll('text.sunlabel').data([1]).join('text').attr('class','sunlabel').attr('y',44).text('r/programming')
+
+      orbitsG.selectAll('circle.orbit').data(sorted, d=>d.id).join('circle').attr('class','orbit').attr('r', d=> orbitScale(d._orbitIndex))
+
+      planetsG.selectAll('circle.planet').data(nodes, d=>d.id).join('circle')
+        .attr('class','planet')
+        .attr('fill', d=> color(d.id))
+        .attr('r', d=> planetR(d.size))
+        .on('pointerenter',(e,d)=>{ if(!sticky){ tip.style('opacity',1); showTip(e,d); highlight(d.id,true) } })
+        .on('pointermove',(e,d)=>{ if(!sticky){ showTip(e,d) } })
+        .on('pointerleave',()=>{ if(!sticky){ tip.style('opacity',0); highlight(null,false) } })
+        .on('click',(e,d)=>{ sticky = (sticky && sticky.id===d.id) ? null : d; tip.style('opacity', sticky?1:0); if(sticky){ showTip(e,d) } highlight(d.id, !!sticky, true) })
+
+      labelsG.selectAll('text.label').data(nodes, d=>d.id).join('text').attr('class','label').text(d=>d.id)
+
+      positionAll(); drawConnections(null)
+    }
+
+    function positionAll(){
+      planetsG.selectAll('circle.planet')
+        .attr('cx', d=> Math.cos(d.theta) * orbitScale(sorted.find(n=>n.id===d.id)._orbitIndex))
+        .attr('cy', d=> Math.sin(d.theta) * orbitScale(sorted.find(n=>n.id===d.id)._orbitIndex))
+      labelsG.selectAll('text.label')
+        .attr('x', d=> Math.cos(d.theta) * (orbitScale(sorted.find(n=>n.id===d.id)._orbitIndex) + planetR(d.size) + 12))
+        .attr('y', d=> Math.sin(d.theta) * (orbitScale(sorted.find(n=>n.id===d.id)._orbitIndex) + planetR(d.size) + 12))
+        .attr('display', labelsCk.checked ? null : 'none')
+    }
+
+    let timer=null
+    function tick(){ nodes.forEach(n=>{ n.theta=(n.theta+n.speed)% (Math.PI*2) }); positionAll(); if(sticky) drawConnections(sticky.id) }
+    function start(){ if(timer) return; timer=d3.timer(tick) }
+    function stop(){ if(!timer) return; timer.stop(); timer=null }
+
+    function updateVisibility(){ drawConnections(sticky?sticky.id:null); positionAll() }
+    alliancesCk.addEventListener('change', updateVisibility)
+    frictionsCk.addEventListener('change', updateVisibility)
+    labelsCk.addEventListener('change', ()=>{ labelsG.attr('display', labelsCk.checked? null : 'none') })
+    animateCk.addEventListener('change', ()=>{ animateCk.checked ? start() : stop() })
+    recenterBtn.addEventListener('click', ()=>{ sticky=null; tip.style('opacity',0); highlight(null,false); drawConnections(null) })
+
+    let sticky=null
+    function showTip(e,d){
+      const m=10
+      const subs=subreddits[d.id]||[]
+      const links=subs.length? subs.map(s=>`<a href="https://www.reddit.com/${s.replace(/^\//,'')}" target="_blank" rel="noopener">${s}</a>`).join(', ') : '<span class="muted">(no subreddit list yet)</span>'
+      tip.html(`<strong>${d.id}</strong><br>Users: ${d.size}<br><div style="margin-top:6px"><b>Subreddits:</b> ${links}</div>`)
+      tip.style('left',(e.clientX+m)+'px').style('top',(e.clientY+m)+'px')
+    }
+    function highlight(id,on){ planetsG.selectAll('circle.planet').attr('opacity', d=> (on && d.id!==id)? .45 : 1); labelsG.selectAll('text.label').attr('opacity', d=> (on && d.id!==id)? .6 : 1); drawConnections(id) }
+
+    function drawConnections(focusId){
+      const data = focusId ? links.filter(l=> l.source===focusId || l.target===focusId) : []
+      const linkGen=(A,B)=>{
+        const a=byId.get(A), b=byId.get(B)
+        const rA=orbitScale(sorted.find(n=>n.id===A)._orbitIndex)
+        const rB=orbitScale(sorted.find(n=>n.id===B)._orbitIndex)
+        const x0=Math.cos(a.theta)*rA, y0=Math.sin(a.theta)*rA
+        const x1=Math.cos(b.theta)*rB, y1=Math.sin(b.theta)*rB
+        const mx=(x0+x1)/2, my=(y0+y1)/2
+        return `M${x0},${y0} Q ${mx*0.9},${my*0.9} ${x1},${y1}`
+      }
+      const wScale=d3.scaleLinear().domain(d3.extent(links,d=>d.weight)).range([3,12])
+      const sel=linksG.selectAll('path.connection').data(data,d=>d.source+'→'+d.target)
+      sel.join('path')
+        .attr('class', d=>`connection ${d.type}`)
+        .attr('stroke','#a9b0bb')
+        .attr('stroke-width', d=>wScale(d.weight))
+        .attr('d', d=>linkGen(d.source,d.target))
+        .attr('display', d=> (d.type==='alliance' && alliancesCk.checked) || (d.type==='friction' && frictionsCk.checked) ? null : 'none')
+    }
+
+    d3.select('#legend').selectAll('div').data(nodes).join('div').attr('class','legend-item')
+      .each(function(d){ const el=d3.select(this); el.append('span').attr('class','swatch').style('background', color(d.id)); el.append('span').text(d.id) })
+
+    function renderCards(){
+      const data = nodes.map(n=> ({ id:n.id, subs: subreddits[n.id]||[], desc: descriptions[n.id]||'', allies: (alliesMap.get(n.id)||[]), frictions: (frictionsMap.get(n.id)||[]) }))
+      const cards = d3.select('#clusterCards').selectAll('div.cluster-card').data(data, d=>d.id)
+
+      const enter = cards.enter().append('div').attr('class','card cluster-card')
+      enter.append('h3').text(d=>d.id)
+      const body = enter.append('div').attr('class','body')
+      body.append('p').attr('class','desc').style('margin','0 0 10px').style('color','var(--muted)').style('font-size','12px').text(d=> d.desc)
+      body.append('div').attr('class','chips')
+      body.append('div').attr('class','rel-block allies').html(d=> d.allies.length ? `<div class="rel-title">Allied with</div> ${d.allies.map(a=>`<span class=\"pill ally\">${a}</span>`).join(' ')}` : '')
+      body.append('div').attr('class','rel-block frictions').html(d=> d.frictions.length ? `<div class="rel-title">In friction with</div> ${d.frictions.map(f=>`<span class=\"pill friction\">${f}</span>`).join(' ')}` : '')
+
+      const merged = enter.merge(cards)
+      merged.select('h3').text(d=>d.id)
+      merged.select('p.desc').text(d=> d.desc)
+      merged.select('.chips').html(d=> d.subs.length
+        ? d.subs.map(s=>`<a class="chip" href="https://www.reddit.com/${s.replace(/^\//,'')}" target="_blank" rel="noopener">${s}</a>`).join(' ')
+        : '<span class="muted">No subreddits listed</span>' )
+      merged.select('.rel-block.allies').html(d=> d.allies.length ? `<div class="rel-title">Allied with</div> ${d.allies.map(a=>`<span class=\"pill ally\">${a}</span>`).join(' ')}` : '')
+      merged.select('.rel-block.frictions').html(d=> d.frictions.length ? `<div class="rel-title">In friction with</div> ${d.frictions.map(f=>`<span class=\"pill friction\">${f}</span>`).join(' ')}` : '')
+
+      cards.exit().remove()
+    }
+
+    function init(){ layout(); renderCards() }
+    init()
+
+    if('ResizeObserver' in window){ const ro=new ResizeObserver(()=>{ layout(); }); ro.observe(document.getElementById('vizCard')) }
+    if('IntersectionObserver' in window){ const io=new IntersectionObserver(([e])=>{ if(!animateCk.checked) return; e.isIntersecting? start(): stop() }, {threshold:0.1}); io.observe(document.getElementById('vizCard')) }
+    window.addEventListener('resize', ()=>{ layout() })
+
+    const usersByCluster = new Map([
+      ['Systems & Reliability Core (8)', ['nekokattt','gyroda','AyrA_ch','Determinant','NostraDavid','crap-with-feet','Dr_Passmore','Galvon']],
+      ['Language and Framework Debaters (9)', ['Revolutionary_Ad7262','rcfox','Conscious-Ball8373','Estpart','Big_Combination9890','BlueGoliath','victotronics','SV-97','masterofmisc']],
+      ['AI and Experimentation Frontier (6)', ['reddituser567853','todo_code','fiskfisk','nayshins','CryoSchema','zdkroot']],
+      ['Makers and Evangelists (7)', ['zarinfam','ferreira-tb','eeriemyxi','soap94','NoVibeCoding','brianvaughn','KontoOficjalneMR']],
+      ['Regional and Cultural Anchors (3)', ['Gadekryds','BrewedDoritos','DevGrohl']],
+      ['Workplace, Careers and Labor Politics (9)', ['minianmna','Tinytrauma','blwinters','haskell_rules','shift_devs','shimman-dev','eightdatabits','SimonTheRockJohnson_','PM_ME_UR_BRAINSTORMS']],
+      ['Policy, Law and Governance (1)', ['no_dice']],
+      ['Explainers and Niche Specialists (4)', ['gosuexac','somebodddy','psaux_grep','secondgamedev']],
+      ['Edge Voices and Cultural Critics (2)', ['Schmittfried','TheJodiety']]
+    ])
+
+    function renderUserCards(){
+      const grid = d3.select('#userCards')
+      const items = Array.from(usersByCluster.entries()).map(([title, users])=>({title, users}))
+      const cards = grid.selectAll('div.user-card').data(items, d=>d.title)
+      const enter = cards.enter().append('div').attr('class','card cluster-card user-card')
+      enter.append('h3').text(d=>d.title)
+      enter.append('div').attr('class','body').append('div').attr('class','chips')
+      const merged = enter.merge(cards)
+      merged.select('h3').text(d=>d.title)
+      merged.select('.chips').html(d=> d.users.map(u=>`<a class="chip" href="https://www.reddit.com/user/${u}" target="_blank" rel="noopener">u/${u}</a>`).join(' '))
+      cards.exit().remove()
+    }
+    renderUserCards()
+  })()
+  </script>
 </body>
 </html>
