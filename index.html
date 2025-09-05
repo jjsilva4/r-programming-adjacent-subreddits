@@ -87,7 +87,7 @@
     <h2>Where else do active users of r/programming post?</h2>
     <p>We looked at <span style='color:var(--link);font-weight:600'>52 active Reddit users</span> in r/programming. Not just one-off commenters or bots—people who regularly join conversations. From there, we grouped them into clusters based on the kinds of threads they jump into, the themes they care about, and which subreddits overlap. Think of clusters less like stereotypes and more like patterns of participation.</p>
     <p><span style='color:var(--link);font-weight:600'>Why 52?</span> That’s a sweet spot. Big enough to see clear cultural patterns, but not so big that everything blurs together. With 50+ users we cover most of the major participation types while still keeping things easy to follow. Going much bigger—say 100 or 200—would mostly add edge cases and noise.</p>
-    <p>Our goal is to show how r/programming works as a cultural space: a mix of <b>technical debates, workplace talk, ideology, and global voices</b>. This sets the stage for a Developer Cultural Brief—a guide to the values and tensions shaping today’s programming culture online.</p>
+    <p>Our goal is to show how r/programming works as a cultural space: a mix of <b>technical debates, workplace talk, ideology, and global voices</b>. This sets the stage for a Developer Cultural Brief: a guide to the values and tensions shaping today’s programming culture online.</p>
   </section>
 
   <!-- Viz + controls -->
@@ -185,7 +185,7 @@
   <!-- Next steps -->
   <h2 class="section-title">Next Steps</h2>
   <section class="card prose">
-    <p>Personas usually flatten people into stereotypes. Our cluster analysis is a better alternative: it shows the different roles people play in the community. Personas answer <em>who</em> the user is. Clusters explain why they act, how they talk, and what habits and tools they rely on. That’s more useful for strategy because it highlights real tensions, overlaps, and everyday practices—not just demographics.</p>
+    <p>Personas usually flatten people into stereotypes. Our cluster analysis is a better alternative: it shows the different roles people play in the community. Personas answer <em>who</em> the user is. Clusters explain why they act, how they talk, and what habits and tools they rely on. That’s more useful for strategy because it highlights real tensions, overlaps, and everyday practices: not just demographics.</p>
     <p>With this work, we see which types of users shape r/programming, how they group, and where the conflicts are. Next, we’ll dive into specific subreddits to surface the beliefs, language, and rituals that animate these clusters.</p>
     <div class="mini-grid">
       <div class="mini-card">
@@ -381,12 +381,38 @@
     recenterBtn.addEventListener('click', ()=>{ sticky=null; tip.style('opacity',0); highlight(null,false); drawConnections(null) })
 
     let sticky=null
+    // Compute screen coordinates for a node so the tooltip can anchor next to the planet
+    function nodeScreenXY(d){
+      const r = orbitScale(sorted.find(n=>n.id===d.id)._orbitIndex)
+      const x = CX + Math.cos(d.theta)*r
+      const y = CY + Math.sin(d.theta)*r
+      const contRect = document.getElementById('vizCard').getBoundingClientRect()
+      return { x: contRect.left + x, y: contRect.top + y }
+    }
     function showTip(e,d){
-      const m=10
+      const m = 12 // tooltip offset
       const subs=subreddits[d.id]||[]
       const links=subs.length? subs.map(s=>`<a href="https://www.reddit.com/${s.replace(/^\//,'')}" target="_blank" rel="noopener">${s}</a>`).join(', ') : '<span class="muted">(no subreddit list yet)</span>'
       tip.html(`<strong>${d.id}</strong><br>Users: ${d.size}<br><div style="margin-top:6px"><b>Subreddits:</b> ${links}</div>`)
-      tip.style('left',(e.clientX+m)+'px').style('top',(e.clientY+m)+'px')
+
+      // Anchor near the planet center rather than the mouse pointer
+      const {x, y} = nodeScreenXY(d)
+      // Nudge tooltip outward along the planet's radial direction so it doesn't overlap
+      const vx = (x - (document.getElementById('vizCard').getBoundingClientRect().left + CX))
+      const vy = (y - (document.getElementById('vizCard').getBoundingClientRect().top + CY))
+      const mag = Math.max(1, Math.hypot(vx,vy))
+      const ox = (vx/mag)*m, oy = (vy/mag)*m
+
+      // Clamp inside the viz card
+      const cardRect = document.getElementById('vizCard').getBoundingClientRect()
+      const tt = tip.node()
+      const tw = tt.offsetWidth || 220
+      const th = tt.offsetHeight || 60
+      let left = x + ox
+      let top  = y + oy
+      left = Math.min(cardRect.right - tw - 8, Math.max(cardRect.left + 8, left))
+      top  = Math.min(cardRect.bottom - th - 8, Math.max(cardRect.top + 8, top))
+      tip.style('left', left + 'px').style('top', top + 'px')
     }
     function highlight(id,on){ planetsG.selectAll('circle.planet').attr('opacity', d=> (on && d.id!==id)? .45 : 1); labelsG.selectAll('text.label').attr('opacity', d=> (on && d.id!==id)? .6 : 1); drawConnections(id) }
 
